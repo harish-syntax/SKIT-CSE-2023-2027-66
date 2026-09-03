@@ -14,8 +14,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # -------------------------------------------------------------
 # CONFIGURATION: Institution & Department Details
 # -------------------------------------------------------------
-COLLEGE_NAME = "Swami Keshvanand Institute of Technology,Management & Gramothan,
-Jaipur"
+COLLEGE_NAME = "Swami Keshvanand Institute of Technology,Management & Gramothan,Jaipur"
 
 DEPARTMENT_NAME = "Department of Computer Science & Engineering"
 # -------------------------------------------------------------
