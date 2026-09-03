@@ -245,11 +245,8 @@ spaceAfter=2
     story.append(Spacer(1, 3))
 
     # 2. Metadata (Repo, Branch, Scope, Date)
-    story.append(Paragraph(f"<b>Project Repository:</b> <font
-color='#2563EB'><b>{html.escape(repo_name)}</b></font> &nbsp;|&nbsp; <b>Branch:</b>
-<code>{html.escape(branch_name)}</code>", repo_style))
-    story.append(Paragraph(f"<b>Evaluation Window:</b> {scope_title} &nbsp;|&nbsp;
-<b>Generated On:</b> {datetime.date.today().strftime('%B %d, %Y')}", meta_style))
+    story.append(Paragraph(f"<b>Project Repository:</b> <font color='#2563EB'><b>{html.escape(repo_name)}</b></font> &nbsp;|&nbsp; <b>Branch:</b> <code>{html.escape(branch_name)}</code>", repo_style))
+    story.append(Paragraph(f"<b>Evaluation Window:</b> {scope_title} &nbsp;|&nbsp; <b>Generated On:</b> {datetime.date.today().strftime('%B %d, %Y')}", meta_style))
 
     # 3. Individual Summary Table
     story.append(Paragraph("1. Individual Contribution Breakdown", section_style))
@@ -298,15 +295,13 @@ color='#2563EB'><b>{html.escape(repo_name)}</b></font> &nbsp;|&nbsp; <b>Branch:<
     story.append(Spacer(1, 6))
 
     # 5. Detailed Commit Logs per Student WITH Vertically Merged Mentor Marks
-    story.append(Paragraph(f"3. Detailed Commit Logs & Mentor Evaluation
-({interval.capitalize()})", section_style))
+    story.append(Paragraph(f"3. Detailed Commit Logs & Mentor Evaluation ({interval.capitalize()})", section_style))
     if not student_logs:
         story.append(Paragraph("<i>No commit logs found for this timeframe.</i>", styles['Normal']))
     else:
         for student_name, logs in student_logs.items():
             student_section = []
-            student_section.append(Paragraph(f"<b>Student:</b> {html.escape(student_name)} —
-<i>{len(logs)} commit(s)</i>", sub_section_style))
+            student_section.append(Paragraph(f"<b>Student:</b> {html.escape(student_name)} — <i>{len(logs)} commit(s)</i>", sub_section_style))
            
             log_table_data = [["Date", "Hash", "Commit Message", "Mentor Marks (/10)"]]
            
