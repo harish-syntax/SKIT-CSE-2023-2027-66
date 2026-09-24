@@ -1,7 +1,8 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
 
 
 INPUT_FILE = "dataset/jaipur_ml_ready_manual_features.csv"
@@ -86,3 +87,34 @@ for n in [50, 100, 200, 300]:
     test_accuracy = accuracy_score(y_test, test_pred)
 
     print(f"{n} trees -> Accuracy: {test_accuracy:.4f}")
+
+print("\nRandom Forest Hyperparameter Tuning:")
+
+param_grid = {
+    "n_estimators": [100, 200, 300],
+    "max_depth": [None, 10, 20],
+    "min_samples_split": [2, 5]
+}
+
+grid_search = GridSearchCV(
+    RandomForestClassifier(
+        random_state=42,
+        class_weight="balanced"
+    ),
+    param_grid=param_grid,
+    cv=3,
+    scoring="accuracy",
+    n_jobs=-1
+)
+
+grid_search.fit(X_train, y_train)
+
+print(f"Best Parameters: {grid_search.best_params_}")
+print(f"Best Cross-Validation Accuracy: {grid_search.best_score_:.4f}")
+
+tuned_model = grid_search.best_estimator_
+
+tuned_pred = tuned_model.predict(X_test)
+tuned_accuracy = accuracy_score(y_test, tuned_pred)
+
+print(f"Tuned Model Test Accuracy: {tuned_accuracy:.4f}")
