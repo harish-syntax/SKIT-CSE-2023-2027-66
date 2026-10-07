@@ -64,11 +64,13 @@ ZONE_LABELS = [ZONE_NAMES[code] for code in range(len(ZONE_NAMES))]
 # CASH-DRAINING REGIONS (stage 1, groups the 10 zones into 3 regions)
 # ============================================================================
 # Why group them at all?
-# The zone-level task has a hard ceiling of ~20% accuracy (see ARCHITECTURE.md
-# for the measurement). The region-level task is genuinely learnable because
-# the data generator's fraud-type logic separates the zones into broad
-# geographic belts. Predicting the belt first gives the control room a
-# confident, actionable statement, then the zone model ranks streets inside it.
+# The zone-level task is a fine-grained 10-way ranking (74.7% top-1, 92.9%
+# top-3 on the v2 dataset -- see reports/EVALUATION_REPORT.md). The region
+# task is a coarser 3-way question that is easier to get confidently right
+# (85.6%), which gives the control room a single interpretable belt call
+# before the zone shortlist narrows it down. Grouping them also dates back
+# to the v1 uniform-zone dataset, where the zone task was capped at ~20% and
+# the region stage was the only confident signal (README.md).
 #
 # Region 0 - West / North-West residential belt
 # Region 1 - South / East industrial and highway corridor
@@ -113,11 +115,12 @@ REGION_DESCRIPTION = "\n".join(
 # Shared by the zone model and the region model so the two stages are directly
 # comparable and either can be retrained without re-deriving settings.
 #
-# Note on the settings: the signal in this dataset is thin and spread across
-# only 4 coarse features, so the models want to be heavily regularised. Many
-# small, shallow trees (depth 3, slow learning rate) generalise noticeably
-# better here than a few deep ones -- a depth-8 / 300-tree variant was tested
-# and lost roughly 3 accuracy points.
+# Note on the settings: the signal is spread across only 4 coarse features,
+# so the models want to be heavily regularised. Many small, shallow trees
+# (depth 3, slow learning rate) generalise noticeably better here than a few
+# deep ones -- on the v1 dataset a depth-8 / 300-tree variant lost roughly
+# 3 accuracy points, and on the v2 dataset every deeper variant tested
+# (depths 4-7) also scored worse.
 XGB_PARAMS = {
     "n_estimators": 1000,
     "learning_rate": 0.05,
@@ -145,18 +148,19 @@ XGB_PARAMS = {
 #    it. Using it is textbook target leakage.
 #
 # 2. Time_to_Withdraw
-#    Mutual information with the zone is 0.22, on par with Fraud_Type (0.32).
-#    It cleanly separates the two large geographic belts, which makes it look
-#    predictive. But it is the delay between the fraud and the withdrawal, so
-#    it too is only known after the crime. Also leakage.
+#    Mutual information with the zone is 0.19 on the v2 dataset (fraud type
+#    carries 1.11), so it is not the strongest signal, but it does capture
+#    timing structure a complaint never has. It is the delay between the
+#    fraud and the withdrawal, so it is only known after the crime. Also
+#    leakage.
 #
 # The rule: only features available at complaint-intake time may be used. Every
 # column in FEATURES passes that test; these two do not.
 LEAKAGE_NOTES = [
-    "Specific_ATM_Location - determines the zone with certainty, but is the "
-    "crime's outcome, not a complaint attribute. EXCLUDED.",
-    "Time_to_Withdraw - predictive of the region (MI 0.22) but only known "
-    "after the withdrawal occurs. EXCLUDED.",
+    "Specific_ATM_Location - determines the zone with certainty, but it is "
+    "the crime's outcome, not a complaint attribute. EXCLUDED.",
+    "Time_to_Withdraw - carries some signal for the zone (MI 0.19) but is "
+    "only known after the withdrawal occurs. EXCLUDED.",
 ]
 
 

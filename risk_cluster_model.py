@@ -5,22 +5,21 @@ STAGE 1: the cash-draining REGION model.
 
 Why this stage exists
 ---------------------
-xgboost_model.py predicts which of 10 ATM zones was used, and that task is
-capped at roughly 20% accuracy. That is not a modelling failure: the dataset
-generator picks the zone with a UNIFORM random draw (dataset/dataset.py:36-52),
-so no algorithm can do better than ~19.5% here. Measured and documented in
-ARCHITECTURE.md.
-
-What does work is the coarser question. The same generator applies broad
-geographic logic to fraud type -- high-value night-time frauds cluster on the
-industrial and highway corridors, low-value daytime frauds cluster in the
-western residential belt. Grouping the 10 zones into 3 regions makes that
-structure learnable, and the model reaches ~76% accuracy.
+xgboost_model.py predicts which of 10 ATM zones was used: 74.7% accuracy and
+a 92.9% top-3 shortlist on the v2 calibrated dataset (dataset/dataset.py).
+This stage answers the coarser question first - which of three geographic
+belts is draining the cash - because the generator's fraud-type logic
+(high-value night-time frauds on the industrial and highway corridors,
+low-value daytime frauds in the western residential belt) makes that
+structure confidently learnable: ~85.6% accuracy. (The older v1 uniform-zone
+dataset capped the zone stage at 20.1% and this stage at 76.5%; the
+before/after story is in README.md.)
 
 So the two stages answer different questions:
-    Stage 1 (this file)   -> WHICH BELT?  ~76% accurate, and stated with a
+    Stage 1 (this file)   -> WHICH BELT?  ~86% accurate, stated with a
                              confidence a control room can act on
-    Stage 2 (xgboost_model.py) -> WHICH STREETS within it?  a top-3 shortlist
+    Stage 2 (xgboost_model.py) -> WHICH STREETS within it?  a top-3
+                             shortlist at ~93% hit rate
 
 Run it from the repository root:
     py -3.13 risk_cluster_model.py
@@ -254,11 +253,12 @@ accuracy_plain = evaluate_region_model(
 )
 
 # The weighted variant is trained and reported because it is the obvious thing
-# to try against a rare region, but it is NOT shipped. Measured behaviour: it
-# lifts rare-region recall (0.01 -> 0.74) and macro-F1 (0.55 -> 0.64) while
-# flooding the rare class with false positives, which makes it confidently wrong
-# on individual complaints. Accuracy is not the reason to reject it -- ranking
-# quality is.
+# to try against minority classes, but it is NOT shipped. Measured on the v2
+# dataset: it buys a little minority recall (region 2 recall 0.82 -> 0.87,
+# zone-level Jhotwara recall 0.32 -> 0.47) at the cost of precision (region 2
+# precision 0.81 -> 0.75, Jhotwara 0.55 -> 0.41) and 1-3 points of overall
+# accuracy. Since the product is a ranked shortlist a human acts on,
+# confidently wrong predictions are worse than a couple of recall points.
 accuracy_weighted = evaluate_region_model(
     region_model_weighted,
     X_test,
@@ -273,8 +273,9 @@ print("=" * 70)
 print(f"  A - Plain (deployed)     accuracy {accuracy_plain:.4f}")
 print(f"  B - Weighted (rejected)  accuracy {accuracy_weighted:.4f}")
 print(
-    "  B is rejected on calibration, not accuracy: it predicts the rare region\n"
-    "  far too often, so a single complaint can come back confidently wrong."
+    "  B is rejected on both accuracy and precision: it gains a few points of\n"
+    "  minority recall by flooding those classes with false positives, so a\n"
+    "  single complaint can come back confidently wrong."
 )
 print(f"  Selected for deployment: Model A (plain)")
 
@@ -312,7 +313,7 @@ print(f"Zone shortlist + region boost   : {combined_hit:.4f}   "
 if combined_hit <= zone_only_hit:
     print(
         "  -> The region stage does NOT improve the shortlist here.\n"
-        "     Its value is interpretability: a ~76%-accurate statement of which\n"
+        "     Its value is interpretability: an ~86%-accurate statement of which\n"
         "     belt to search, which a flat 10-way probability list cannot give."
     )
 else:
@@ -344,10 +345,12 @@ print(f"Trained region model saved to: {REGION_MODEL_OUTPUT_FILE}")
 # Rs 18,000, reporting it at 14:00."
 #
 # This stays consistent with how the dataset was generated: dataset/dataset.py
-# treats a UPI Scam as a low-value, daytime crime (Rs 2,000-30,000, 09:00-20:00).
-# An earlier demo used "UPI Scam at 22:00 for Rs 32,000", which contradicts that
-# on both counts; the model still returned confident output, so the demo would
-# have looked plausible while being meaningless.
+# gives UPI Scam a right-skewed loss profile (Rs 1,500-60,000, mode ~Rs 8,000)
+# with daytime complaint hours (08:00-23:00, peaking early afternoon), so
+# Rs 18,000 at 14:00 is a plausible large-loss daytime complaint. An earlier
+# demo used a night-time hour and an amount outside the UPI profile; the model
+# still returned confident output, so the demo would have looked plausible
+# while being meaningless.
 mock_complaint = {
     "Fraud_Type_Code": 0,        # UPI Scam
     "Victim_District_Code": 0,   # Jaipur

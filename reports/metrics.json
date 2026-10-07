@@ -1,0 +1,302 @@
+{
+  "meta": {
+    "generated_on": "2026-10-07",
+    "dataset": "dataset/jaipur_ml_ready_manual_features.csv",
+    "rows": 5000,
+    "features": [
+      "Fraud_Type_Code",
+      "Victim_District_Code",
+      "Time_of_Day_Code",
+      "Amount_Bracket_Code"
+    ],
+    "target": "Target_ATM_Zone_Code",
+    "split": "80/20 stratified on zone label, random_state=42",
+    "train_rows": 4000,
+    "test_rows": 1000,
+    "zone_model_artifact": "models/xgboost_atm_zone.joblib",
+    "region_model_artifact": "models/xgboost_risk_region.joblib",
+    "leakage_columns_excluded": [
+      "Specific_ATM_Location",
+      "Time_to_Withdraw"
+    ]
+  },
+  "zone_holdout": {
+    "zone_accuracy": 0.747,
+    "zone_balanced_accuracy": 0.6999171098299947,
+    "zone_cohen_kappa": 0.7080568239121079,
+    "zone_mcc": 0.7087863622864284,
+    "zone_macro_f1": 0.6997934253831265,
+    "zone_weighted_f1": 0.7433804357424515,
+    "zone_top1_accuracy": 0.747,
+    "zone_top2_accuracy": 0.894,
+    "zone_top3_accuracy": 0.929,
+    "zone_top4_accuracy": 0.952,
+    "zone_top5_accuracy": 0.964,
+    "zone_mrr": 0.8452170634920635,
+    "zone_roc_auc_ovr_macro": 0.9372934869900723,
+    "zone_log_loss": 0.8413158655166626,
+    "zone_brier_score": 0.3675841880310128,
+    "zone_per_class": {
+      "Mansarovar": {
+        "precision": 0.8061674008810573,
+        "recall": 0.9195979899497487,
+        "f1": 0.8591549295774648,
+        "support": 199
+      },
+      "Sitapura Industrial": {
+        "precision": 0.9113924050632911,
+        "recall": 0.8181818181818182,
+        "f1": 0.8622754491017964,
+        "support": 88
+      },
+      "Vaishali Nagar": {
+        "precision": 0.8285714285714286,
+        "recall": 0.7310924369747899,
+        "f1": 0.7767857142857143,
+        "support": 119
+      },
+      "Malviya Nagar": {
+        "precision": 0.6190476190476191,
+        "recall": 0.5777777777777777,
+        "f1": 0.5977011494252874,
+        "support": 45
+      },
+      "Jhotwara": {
+        "precision": 0.5454545454545454,
+        "recall": 0.3157894736842105,
+        "f1": 0.4,
+        "support": 38
+      },
+      "C-Scheme": {
+        "precision": 0.8083832335329342,
+        "recall": 0.7714285714285715,
+        "f1": 0.7894736842105263,
+        "support": 175
+      },
+      "Pratap Nagar": {
+        "precision": 0.7066666666666667,
+        "recall": 0.8833333333333333,
+        "f1": 0.7851851851851852,
+        "support": 60
+      },
+      "Bani Park": {
+        "precision": 0.6493506493506493,
+        "recall": 0.625,
+        "f1": 0.6369426751592356,
+        "support": 160
+      },
+      "Jagatpura": {
+        "precision": 0.6346153846153846,
+        "recall": 0.66,
+        "f1": 0.6470588235294118,
+        "support": 50
+      },
+      "Vidyadhar Nagar": {
+        "precision": 0.5974025974025974,
+        "recall": 0.696969696969697,
+        "f1": 0.6433566433566433,
+        "support": 66
+      }
+    },
+    "feature_importances": {
+      "Fraud_Type_Code": 0.5633524656295776,
+      "Victim_District_Code": 0.13024215400218964,
+      "Time_of_Day_Code": 0.15976499021053314,
+      "Amount_Bracket_Code": 0.14664040505886078
+    }
+  },
+  "region_holdout": {
+    "region_accuracy": 0.856,
+    "region_balanced_accuracy": 0.8456695701437575,
+    "region_cohen_kappa": 0.7651801264113653,
+    "region_mcc": 0.7651921534099497,
+    "region_macro_f1": 0.8446996233342293,
+    "region_weighted_f1": 0.8561008171791763,
+    "region_top1_accuracy": 0.856,
+    "region_top2_accuracy": 0.97,
+    "region_top3_accuracy": 1.0,
+    "region_top4_accuracy": 1.0,
+    "region_top5_accuracy": 1.0,
+    "region_mrr": 0.923,
+    "region_roc_auc_ovr_macro": 0.9465855328177372,
+    "region_log_loss": 0.3996654152870178,
+    "region_brier_score": 0.21260412959276379,
+    "region_per_class": {
+      "West & NW Residential": {
+        "precision": 0.8865384615384615,
+        "recall": 0.8814531548757171,
+        "f1": 0.8839884947267498,
+        "support": 523
+      },
+      "South & East Industrial": {
+        "precision": 0.8333333333333334,
+        "recall": 0.8333333333333334,
+        "f1": 0.8333333333333334,
+        "support": 252
+      },
+      "Central & Outlying Mixed": {
+        "precision": 0.8114035087719298,
+        "recall": 0.8222222222222222,
+        "f1": 0.8167770419426048,
+        "support": 225
+      }
+    }
+  },
+  "zone_cv": {
+    "n_splits": 5,
+    "stratified_on": "zone label",
+    "folds": [
+      {
+        "fold": 1,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.722,
+        "macro_f1": 0.6714922614498048
+      },
+      {
+        "fold": 2,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.74,
+        "macro_f1": 0.6955823474549839
+      },
+      {
+        "fold": 3,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.74,
+        "macro_f1": 0.6862440163790808
+      },
+      {
+        "fold": 4,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.746,
+        "macro_f1": 0.7144722339739362
+      },
+      {
+        "fold": 5,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.724,
+        "macro_f1": 0.685008929377163
+      }
+    ],
+    "accuracy_mean": 0.7343999999999999,
+    "accuracy_std": 0.00958331884056876,
+    "macro_f1_mean": 0.6905599577269939,
+    "macro_f1_std": 0.014212949452300784
+  },
+  "region_cv": {
+    "n_splits": 5,
+    "stratified_on": "zone label",
+    "folds": [
+      {
+        "fold": 1,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.853,
+        "macro_f1": 0.8409195267918997
+      },
+      {
+        "fold": 2,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.853,
+        "macro_f1": 0.8413118002225488
+      },
+      {
+        "fold": 3,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.859,
+        "macro_f1": 0.8483750227243819
+      },
+      {
+        "fold": 4,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.849,
+        "macro_f1": 0.8372134383179278
+      },
+      {
+        "fold": 5,
+        "train_rows": 4000,
+        "val_rows": 1000,
+        "accuracy": 0.844,
+        "macro_f1": 0.8332875148099107
+      }
+    ],
+    "accuracy_mean": 0.8516,
+    "accuracy_std": 0.004963869458396347,
+    "macro_f1_mean": 0.8402214605733338,
+    "macro_f1_std": 0.005005687055465383
+  },
+  "baselines": {
+    "majority_class": {
+      "label": "Always predict Mansarovar",
+      "zone_accuracy": 0.199,
+      "zone_top3": 0.199
+    },
+    "uniform_random": {
+      "label": "Uniform random over 10 zones",
+      "zone_accuracy": 0.1,
+      "zone_top3": 0.3
+    },
+    "random_forest_default": {
+      "label": "Random Forest (100 trees, tuned-free baseline)",
+      "zone_accuracy": 0.707,
+      "zone_top3": 0.909
+    },
+    "random_forest_tuned": {
+      "label": "Random Forest (200 trees, depth 10, split 5)",
+      "zone_accuracy": 0.712,
+      "zone_top3": 0.925
+    },
+    "xgboost_v2_deployed": {
+      "label": "XGBoost deployed (this report's hold-out)",
+      "zone_accuracy": 0.747,
+      "zone_top3": 0.929
+    },
+    "xgboost_v1_old_generator": {
+      "label": "XGBoost measured on v1 generator (uniform zones + 20% noise)",
+      "zone_accuracy": 0.201,
+      "zone_top3": 0.585
+    },
+    "random_forest_v1_old_generator": {
+      "label": "Random Forest measured on v1 generator",
+      "zone_accuracy": 0.193,
+      "zone_top3": null
+    }
+  },
+  "v1_vs_v2": {
+    "zone_accuracy": {
+      "v1": 0.201,
+      "v2": 0.747,
+      "delta_pp": 54.6
+    },
+    "zone_top3": {
+      "v1": 0.585,
+      "v2": 0.929,
+      "delta_pp": 34.4
+    },
+    "region_accuracy": {
+      "v1": 0.765,
+      "v2": 0.856,
+      "delta_pp": 9.1
+    },
+    "rf_accuracy": {
+      "v1": 0.193,
+      "v2": 0.712,
+      "delta_pp": 51.9
+    }
+  },
+  "charts": [
+    "zone_confusion_matrix.png",
+    "region_confusion_matrix.png",
+    "zone_feature_importance.png",
+    "zone_precision_recall.png",
+    "zone_topk_curve.png",
+    "baseline_v1_vs_v2.png"
+  ]
+}
