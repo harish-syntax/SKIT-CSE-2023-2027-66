@@ -10,22 +10,23 @@ Why Top 3 and not Top 1?
     A single guess is a coin flip for a patrol unit. Three ranked zones let the
     control room stage a primary and two fallback checkposts, and the
     "Top-3 hit rate" metric below measures how often the real zone is inside
-    that shortlist. On this dataset the top-3 shortlist is roughly three times
-    more reliable than a single guess, which is the whole justification for
-    ranking rather than returning one label.
+    that shortlist. On this dataset the shortlist lifts the hit rate from
+    74.7% (top 1) to 92.9% (top 3) on hold-out, which is the whole
+    justification for ranking rather than returning one label.
 
 A note on the accuracy figure
-    Overall accuracy lands near 20% for 10 classes. Read that carefully: the
-    measured ceiling for this dataset is ~19.5% (see ARCHITECTURE.md), and a
-    Random Forest reaches ~19.3% on the same split. The synthetic generator
-    picks the ATM zone with a UNIFORM random draw from a candidate list, so
-    fraud type tells you only which four zones the answer came from, never
-    which one. ~20% is therefore the information-theoretic ceiling, not an
-    under-trained model. Judge the approach on the Top-3 hit rate (~59%).
+    Overall accuracy lands at ~75% for 10 classes, with the Top-3 shortlist
+    at ~93% - measured on the v2 calibrated generator in dataset/dataset.py.
+    The original v1 generator drew the zone uniformly and capped the very
+    same model at 20.10% / 58.50%; the before/after story lives in
+    README.md. 5-fold cross-validation puts this model at 73.4% +/- 1.0,
+    and every metric (kappa, MCC, ROC-AUC, per-zone report, baselines) is
+    in reports/EVALUATION_REPORT.md, produced by evaluation_report.py.
 
-    If you need a confidently accurate statement rather than a shortlist, see
-    risk_cluster_model.py, which predicts the broader cash-draining region at
-    ~76% accuracy.
+    Judge the approach on the Top-3 hit rate (~93%), because the shortlist
+    is what patrol deployment acts on. For a confidently accurate single
+    statement, see risk_cluster_model.py, which predicts the broader
+    cash-draining region at ~86% accuracy.
 
 Run it from the repository root:
     py -3.13 xgboost_model.py
@@ -285,12 +286,13 @@ print(f"Trained model saved to: {MODEL_OUTPUT_FILE}")
 #   Amount_Bracket_Code   1 = Medium (15k-50k), because 18,000 falls in that band
 #
 # IMPORTANT: this mock must stay internally consistent with the way the dataset
-# was generated. dataset/dataset.py treats a UPI Scam as a low-value, daytime
-# crime (Rs 2,000-30,000, between 09:00 and 20:00). An earlier version of this
-# demo used "UPI Scam at 22:00 for Rs 32,000", which contradicts that on both
-# counts and handed the model an impossible complaint -- it still returned
-# confident-looking output, which is the dangerous kind of wrong. Keep the
-# amount and time-of-day plausible for the fraud type.
+# was generated. dataset/dataset.py gives UPI Scam a right-skewed loss profile
+# (Rs 1,500-60,000, mode ~Rs 8,000) with daytime complaint hours (08:00-23:00,
+# peaking early afternoon), so Rs 18,000 at 14:00 is a plausible large-loss
+# daytime complaint. An earlier version of this demo used a night-time hour and
+# an amount outside the UPI profile; it still returned confident-looking output,
+# which is the dangerous kind of wrong. Keep the amount and time-of-day
+# plausible for the fraud type.
 mock_complaint = {
     "Fraud_Type_Code": 0,
     "Victim_District_Code": 0,
@@ -313,8 +315,9 @@ for result in top_zones:
     print(f"  {result['zone']}: {result['probability']:.4f}")
 
 print(
-    "\nNote: these zone-level probabilities are near-uniform because the model "
-    "has little\nsignal to separate the 10 zones. For a confident, actionable "
-    "statement, run\nrisk_cluster_model.py, which predicts the broader "
-    "cash-draining region at ~76%."
+    "\nNote: judge the zone model by its shortlist, not its top probability:"
+    "\nTop-3 hit rate is 92.9% on hold-out (Top-1 is 74.7%, so the leading"
+    "\nzone alone is often the wrong one). For a belt-level statement a"
+    "\ncontrol room can act on directly, run risk_cluster_model.py, which"
+    "\npredicts the broader cash-draining region at ~86% accuracy."
 )
