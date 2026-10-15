@@ -149,8 +149,19 @@ def predict_top_3_zones_with_region(zone_model, region_model, input_features, to
     # Promote zones that sit inside a likely region. Multiplying by the region's
     # probability (rather than hard-filtering to it) keeps a zone visible when
     # the region model is genuinely torn between two belts.
-    region_of_each_zone = np.array([zone_to_region(z) for z in range(len(ZONE_NAMES))])
+    # region_of_each_zone = np.array([zone_to_region(z) for z in range(len(ZONE_NAMES))])
+    # combined = zone_probs * region_probs[region_of_each_zone]
+
+    region_of_each_zone = np.array(
+    [zone_to_region(z) for z in range(len(ZONE_NAMES))]
+)
+
     combined = zone_probs * region_probs[region_of_each_zone]
+
+    # Normalize combined scores so they sum to 1 across all 10 zones.
+    combined_total = combined.sum()
+    if combined_total > 0:
+        combined = combined / combined_total
 
     ranked = np.argsort(combined)[::-1][:top_n]
     shortlist = [
