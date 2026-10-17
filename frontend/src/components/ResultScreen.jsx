@@ -66,10 +66,16 @@ export default function ResultScreen({ complaints, onSelect, onNew }) {
                   <td className="px-4 py-2.5">{c.fraudType}</td>
                   <td className="px-4 py-2.5 font-mono">₹{c.amount.toLocaleString("en-IN")}</td>
                   <td className="px-4 py-2.5">
-                    {c.zones[0].name}{" "}
-                    <span className="font-mono text-xs text-risk">
-                      {Math.round(c.zones[0].probability * 100)}%
-                    </span>
+                    {c.zones && c.zones[0] ? (
+                      <>
+                        {c.zones[0].name}{" "}
+                        <span className="font-mono text-xs text-risk font-semibold">
+                          {Math.round(c.zones[0].probability * 100)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted text-xs">Pending</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs text-muted">
                     {formatTime(c.filedAt)}
