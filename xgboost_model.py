@@ -19,9 +19,10 @@ A note on the accuracy figure
     at ~93% - measured on the v2 calibrated generator in dataset/dataset.py.
     The original v1 generator drew the zone uniformly and capped the very
     same model at 20.10% / 58.50%; the before/after story lives in
-    README.md. 5-fold cross-validation puts this model at 73.4% +/- 1.0,
-    and every metric (kappa, MCC, ROC-AUC, per-zone report, baselines) is
-    in reports/EVALUATION_REPORT.md, produced by evaluation_report.py.
+    README.md. Repeated 5-fold cross-validation (2 repeats) puts this model at
+    73.3% +/- 0.7, and every metric (kappa, MCC, ROC-AUC, per-zone report,
+    baselines) is in reports/EVALUATION_REPORT.md, produced by
+    evaluation_report.py.
 
     Judge the approach on the Top-3 hit rate (~93%), because the shortlist
     is what patrol deployment acts on. For a confidently accurate single
@@ -33,6 +34,7 @@ Run it from the repository root:
 """
 
 import os
+from datetime import date
 
 import joblib
 import numpy as np
@@ -260,11 +262,26 @@ print(f"\nSelected for deployment: {best_model_name}")
 # backend/app in sync with this file instead of duplicating the mapping.
 os.makedirs(os.path.dirname(MODEL_OUTPUT_FILE), exist_ok=True)
 
+# The selected variant's hold-out scores travel with the artifact, so whoever
+# loads the model can see which version it is and what it scored.
+best_results = (
+    results_weighted if best_model is model_weighted else results_plain
+)
+
 joblib.dump(
     {
         "model": best_model,
         "zone_names": ZONE_NAMES,
         "features": FEATURES,
+        "version": "1.0.0",
+        "model_name": best_model_name,
+        "trained_on": date.today().isoformat(),
+        "dataset": INPUT_FILE,
+        "random_state": RANDOM_STATE,
+        "metrics": {
+            "accuracy": best_results["accuracy"],
+            "top3_hit_rate": best_results["top3_hit_rate"],
+        },
     },
     MODEL_OUTPUT_FILE,
 )

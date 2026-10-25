@@ -67,7 +67,7 @@ dataflow, and the reasoning behind the modelling decisions.
 | `xgboost_model.py` | Stage 2 — zone model, evaluation, `predict_top_3_zones()` |
 | `risk_cluster_model.py` | Stage 1 — region model, evaluation, `predict_top_3_zones_with_region()` |
 | `random_forest_model.py` | Random Forest baseline + grid search |
-| `evaluation_report.py` | Extended evaluation of the deployed artifacts → `reports/` (metrics.json, markdown report, charts, 5-fold CV, baselines) |
+| `evaluation_report.py` | Extended evaluation of the deployed artifacts → `reports/` (metrics.json, markdown report, charts, repeated 5-fold CV, baselines) |
 | `backend/` | FastAPI complaint CRUD, prediction persistence |
 
 `atm_zone_config.py` exists so the zone mapping is defined **once**. Three
@@ -207,8 +207,8 @@ backend all work unmodified.
 | **XGBoost (deployed)** | **74.70%** | **92.90%** |
 
 \* The 4-feature Bayes rate (the best any classifier can do from these four
-columns) is 83.5%; the deployed model reaches ~90% of it, and 5-fold CV puts
-it at 73.4% ± 1.0. The remaining gap is irreducible feature ambiguity — some
+columns) is 83.5%; the deployed model reaches ~90% of it, and repeated 5-fold
+CV puts it at 73.3% ± 0.7. The remaining gap is irreducible feature ambiguity — some
 complaints genuinely fit several zones.
 
 Every number in this section, plus per-class reports, kappa/MCC, ROC-AUC,
@@ -261,8 +261,8 @@ The same ordering held on the v2 dataset: every deeper variant tested
 remains the deployed configuration (now 74.70% / 92.90%).
 
 Caveat: this was selected against held-out scores rather than nested CV. The
-direction is consistent across configurations on both datasets, and the 5-fold
-CV in `reports/` is the robustness check, but a `GridSearchCV` would be the
+direction is consistent across configurations on both datasets, and the
+repeated 5-fold CV in `reports/` is the robustness check, but a `GridSearchCV` would be the
 rigorous form.
 
 ### Why plain models ship and weighted models do not
@@ -301,8 +301,8 @@ labelled "comparison only".
   deployment value.
 - **Extended report:** `evaluation_report.py` loads the deployed artifacts and
   adds balanced accuracy, Cohen's kappa, MCC, per-class tables, Top-1..5,
-  MRR, ROC-AUC (OvR macro), log loss, multiclass Brier, 5-fold stratified CV
-  (zone 73.4% ± 1.0, region 85.2% ± 0.5), baseline comparisons
+  MRR, ROC-AUC (OvR macro), log loss, multiclass Brier, repeated 5-fold
+  stratified CV (zone 73.3% ± 0.7, region 85.0% ± 0.7), baseline comparisons
   (majority / uniform / Random Forest / v1 reference) and charts. Outputs are
   committed under `reports/` (`metrics.json`, `EVALUATION_REPORT.md`, PNGs).
 - **Coverage check:** the region evaluation warns explicitly when any region
@@ -366,7 +366,7 @@ sensible follow-up.
    real-world predictive power. Re-validation on actual complaint data is
    required before any operational claim.
 4. **Hyperparameters were chosen on held-out scores**, not nested CV (§7);
-   the 5-fold CV in `reports/` is the robustness check.
+   the repeated 5-fold CV in `reports/` is the robustness check.
 5. **No drift or feedback loop yet.** Nothing monitors whether predictions stay
    accurate as crime patterns shift.
 

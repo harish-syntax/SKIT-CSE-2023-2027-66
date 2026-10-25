@@ -1,6 +1,6 @@
 # Evaluation Report - Predictive Analytics Framework for Cybercrime Complaints
 
-Generated on 2026-10-07 by `evaluation_report.py`.
+Generated on 2026-10-25 by `evaluation_report.py`.
 Machine-readable version: [`metrics.json`](metrics.json).
 
 ## Headline: dataset generator v1 -> v2
@@ -109,32 +109,47 @@ I4C/NCRP complaint statistics cited in `dataset/dataset.py`.
 
 ![Region confusion matrix](region_confusion_matrix.png)
 
-## Cross-validation (5-fold, stratified on the zone label)
+## Cross-validation (5-fold x 2 repeats, stratified on the zone label)
 
-Hold-out numbers can be lucky; these come from five retrainings on disjoint
-folds of the full 5,000-row dataset.
+Hold-out numbers can be lucky; these come from two repeats of 5-fold CV (10
+retrainings) on the full 5,000-row dataset. Folds within a repeat are
+disjoint; the second repeat reuses the same rows with a different partition.
+The main spread is the 10-fold std; the repeat-mean std is shown alongside it
+as a coarse stability check, since it is computed from only two repeat means.
 
 ### Zone model
 
-| Fold | Rows | Accuracy | Macro F1 |
-|---|---|---|---|
-| 1 | 1000 | 0.7220 | 0.6715 |
-| 2 | 1000 | 0.7400 | 0.6956 |
-| 3 | 1000 | 0.7400 | 0.6862 |
-| 4 | 1000 | 0.7460 | 0.7145 |
-| 5 | 1000 | 0.7240 | 0.6850 |
-| **Mean +/- std** | - | **0.7344 +/- 0.0096** | **0.6906 +/- 0.0142** |
+| Repeat | Fold | Rows | Accuracy | Macro F1 |
+|---|---|---|---|---|
+| 1 | 1 | 1000 | 0.7220 | 0.6715 |
+| 1 | 2 | 1000 | 0.7400 | 0.6956 |
+| 1 | 3 | 1000 | 0.7400 | 0.6862 |
+| 1 | 4 | 1000 | 0.7460 | 0.7145 |
+| 1 | 5 | 1000 | 0.7240 | 0.6850 |
+| 2 | 6 | 1000 | 0.7310 | 0.6990 |
+| 2 | 7 | 1000 | 0.7300 | 0.6856 |
+| 2 | 8 | 1000 | 0.7330 | 0.6911 |
+| 2 | 9 | 1000 | 0.7360 | 0.6918 |
+| 2 | 10 | 1000 | 0.7310 | 0.6856 |
+| **All folds** | **Mean +/- std** | - | **0.7333 +/- 0.0070** | **0.6906 +/- 0.0106** |
+| **Across repeats** | **Std of repeat means** | - | **0.0011** | **0.0000** |
 
 ### Region model
 
-| Fold | Rows | Accuracy | Macro F1 |
-|---|---|---|---|
-| 1 | 1000 | 0.8530 | 0.8409 |
-| 2 | 1000 | 0.8530 | 0.8413 |
-| 3 | 1000 | 0.8590 | 0.8484 |
-| 4 | 1000 | 0.8490 | 0.8372 |
-| 5 | 1000 | 0.8440 | 0.8333 |
-| **Mean +/- std** | - | **0.8516 +/- 0.0050** | **0.8402 +/- 0.0050** |
+| Repeat | Fold | Rows | Accuracy | Macro F1 |
+|---|---|---|---|---|
+| 1 | 1 | 1000 | 0.8530 | 0.8409 |
+| 1 | 2 | 1000 | 0.8530 | 0.8413 |
+| 1 | 3 | 1000 | 0.8590 | 0.8484 |
+| 1 | 4 | 1000 | 0.8490 | 0.8372 |
+| 1 | 5 | 1000 | 0.8440 | 0.8333 |
+| 2 | 6 | 1000 | 0.8500 | 0.8362 |
+| 2 | 7 | 1000 | 0.8470 | 0.8357 |
+| 2 | 8 | 1000 | 0.8490 | 0.8391 |
+| 2 | 9 | 1000 | 0.8620 | 0.8476 |
+| 2 | 10 | 1000 | 0.8340 | 0.8242 |
+| **All folds** | **Mean +/- std** | - | **0.8500 +/- 0.0074** | **0.8384 +/- 0.0066** |
+| **Across repeats** | **Std of repeat means** | - | **0.0016** | **0.0018** |
 
 ## Baselines
 

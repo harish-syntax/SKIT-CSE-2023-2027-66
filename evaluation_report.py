@@ -9,7 +9,8 @@ much deeper set of metrics than the training scripts print:
     - per-class precision / recall / F1 (macro and weighted)
     - Top-1..Top-5 hit rates and Mean Reciprocal Rank (MRR)
     - ROC-AUC (one-vs-rest, macro), log loss, multiclass Brier score
-    - 5-fold stratified cross-validation (mean and standard deviation)
+    - repeated stratified cross-validation, 5-fold x 2 repeats (mean and both
+      10-fold and repeat-mean standard deviations)
     - baseline comparison: majority, uniform random, Random Forest, and the
       numbers measured on the original v1 dataset generator
 
@@ -53,7 +54,7 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import RepeatedStratifiedKFold, train_test_split
 from sklearn.preprocessing import label_binarize
 from xgboost import XGBClassifier
 
@@ -175,24 +176,34 @@ def score_block(y_true, probabilities, class_labels, n_classes, prefix=""):
     return metrics
 
 
-def cross_validate(params, X, y_fit, y_stratify, n_splits=5):
+def cross_validate(params, X, y_fit, y_stratify, n_splits=5, n_repeats=2):
     """
-    Stratified K-fold cross-validation with a fresh clone of the given model.
-    Folds are stratified on the ZONE label for both tasks (y_stratify) so the
-    zone and region CV numbers are computed on identical folds; y_fit is what
-    the model is actually trained and scored on.
+    Repeated stratified K-fold cross-validation with a fresh clone of the given
+    model. Repeating the split reduces the chance that one lucky partition
+    defines the reported score. Folds are stratified on the ZONE label for both
+    tasks (y_stratify) so the zone and region CV numbers are computed on
+    identical folds; y_fit is what the model is actually trained and scored on.
+
+    Two spreads are reported:
+      accuracy_std         - std over all n_splits * n_repeats fold scores
+      accuracy_std_repeat  - std over the per-repeat mean scores (coarse; with
+                             only two repeats it is a descriptive stability
+                             check, not a precise uncertainty estimate)
     """
     folds = []
-    splitter = StratifiedKFold(
-        n_splits=n_splits, shuffle=True, random_state=RANDOM_STATE
+    splitter = RepeatedStratifiedKFold(
+        n_splits=n_splits, n_repeats=n_repeats, random_state=RANDOM_STATE
     )
+    total_fits = n_splits * n_repeats
     for fold, (train_idx, val_idx) in enumerate(splitter.split(X, y_stratify), start=1):
+        repeat = (fold - 1) // n_splits + 1
         model = XGBClassifier(**params)
         model.fit(X.iloc[train_idx], y_fit.iloc[train_idx])
         y_pred = model.predict(X.iloc[val_idx])
         folds.append(
             {
                 "fold": fold,
+                "repeat": repeat,
                 "train_rows": int(len(train_idx)),
                 "val_rows": int(len(val_idx)),
                 "accuracy": float(accuracy_score(y_fit.iloc[val_idx], y_pred)),
@@ -202,21 +213,34 @@ def cross_validate(params, X, y_fit, y_stratify, n_splits=5):
             }
         )
         print(
-            f"  fold {fold}/{n_splits}: "
+            f"  repeat {repeat}/{n_repeats} "
+            f"fold {((fold - 1) % n_splits) + 1}/{n_splits}: "
             f"accuracy={folds[-1]['accuracy']:.4f} "
             f"macro_f1={folds[-1]['macro_f1']:.4f}"
         )
 
     accuracies = [f["accuracy"] for f in folds]
     macro_f1s = [f["macro_f1"] for f in folds]
+    repeat_accuracies = [
+        float(np.mean([f["accuracy"] for f in folds if f["repeat"] == repeat]))
+        for repeat in range(1, n_repeats + 1)
+    ]
+    repeat_macro_f1s = [
+        float(np.mean([f["macro_f1"] for f in folds if f["repeat"] == repeat]))
+        for repeat in range(1, n_repeats + 1)
+    ]
     summary = {
         "n_splits": n_splits,
+        "n_repeats": n_repeats,
+        "total_fits": total_fits,
         "stratified_on": "zone label",
         "folds": folds,
         "accuracy_mean": float(np.mean(accuracies)),
         "accuracy_std": float(np.std(accuracies)),
+        "accuracy_std_repeat": float(np.std(repeat_accuracies)),
         "macro_f1_mean": float(np.mean(macro_f1s)),
         "macro_f1_std": float(np.std(macro_f1s)),
+        "macro_f1_std_repeat": float(np.std(repeat_macro_f1s)),
     }
     return summary
 
@@ -479,12 +503,12 @@ baselines = {
 
 
 # ============================================================================
-# 5-FOLD STRATIFIED CROSS-VALIDATION
+# REPEATED STRATIFIED CROSS-VALIDATION (5-FOLD x 2 REPEATS)
 # ============================================================================
-print("\nZone model 5-fold cross-validation:")
+print("\nZone model repeated 5-fold cross-validation (2 repeats):")
 zone_cv = cross_validate(ZONE_XGB_PARAMS, X, y_zone, y_zone)
 
-print("\nRegion model 5-fold cross-validation:")
+print("\nRegion model repeated 5-fold cross-validation (2 repeats):")
 region_cv = cross_validate(
     XGB_PARAMS, X, y_zone.map(ZONE_REGION), y_zone
 )
@@ -640,18 +664,23 @@ def markdown_per_class_table(per_class, class_column):
 
 def cv_markdown(cv_block):
     lines = [
-        f"| Fold | Rows | Accuracy | Macro F1 |",
-        "|---|---|---|---|",
+        f"| Repeat | Fold | Rows | Accuracy | Macro F1 |",
+        "|---|---|---|---|---|",
     ]
     for fold in cv_block["folds"]:
         lines.append(
-            f"| {fold['fold']} | {fold['val_rows']} "
+            f"| {fold['repeat']} | {fold['fold']} | {fold['val_rows']} "
             f"| {fold['accuracy']:.4f} | {fold['macro_f1']:.4f} |"
         )
     lines.append(
-        f"| **Mean +/- std** | - | "
+        f"| **All folds** | **Mean +/- std** | - | "
         f"**{cv_block['accuracy_mean']:.4f} +/- {cv_block['accuracy_std']:.4f}** | "
         f"**{cv_block['macro_f1_mean']:.4f} +/- {cv_block['macro_f1_std']:.4f}** |"
+    )
+    lines.append(
+        f"| **Across repeats** | **Std of repeat means** | - | "
+        f"**{cv_block['accuracy_std_repeat']:.4f}** | "
+        f"**{cv_block['macro_f1_std_repeat']:.4f}** |"
     )
     return "\n".join(lines)
 
@@ -773,10 +802,13 @@ I4C/NCRP complaint statistics cited in `dataset/dataset.py`.
 
 ![Region confusion matrix](region_confusion_matrix.png)
 
-## Cross-validation (5-fold, stratified on the zone label)
+## Cross-validation (5-fold x 2 repeats, stratified on the zone label)
 
-Hold-out numbers can be lucky; these come from five retrainings on disjoint
-folds of the full {len(df):,}-row dataset.
+Hold-out numbers can be lucky; these come from two repeats of 5-fold CV (10
+retrainings) on the full {len(df):,}-row dataset. Folds within a repeat are
+disjoint; the second repeat reuses the same rows with a different partition.
+The main spread is the 10-fold std; the repeat-mean std is shown alongside it
+as a coarse stability check, since it is computed from only two repeat means.
 
 ### Zone model
 
@@ -837,8 +869,16 @@ print("=" * 70)
 print(f"  Zone accuracy        : {zone_metrics['zone_accuracy']:.4f}")
 print(f"  Zone top-3           : {zone_metrics['zone_top3_accuracy']:.4f}")
 print(f"  Zone macro F1        : {zone_metrics['zone_macro_f1']:.4f}")
-print(f"  Zone CV accuracy     : {zone_cv['accuracy_mean']:.4f} +/- {zone_cv['accuracy_std']:.4f}")
+print(
+    f"  Zone CV accuracy     : {zone_cv['accuracy_mean']:.4f} +/- "
+    f"{zone_cv['accuracy_std']:.4f} "
+    f"(repeat-mean std {zone_cv['accuracy_std_repeat']:.4f})"
+)
 print(f"  Region accuracy      : {region_metrics['region_accuracy']:.4f}")
-print(f"  Region CV accuracy   : {region_cv['accuracy_mean']:.4f} +/- {region_cv['accuracy_std']:.4f}")
+print(
+    f"  Region CV accuracy   : {region_cv['accuracy_mean']:.4f} +/- "
+    f"{region_cv['accuracy_std']:.4f} "
+    f"(repeat-mean std {region_cv['accuracy_std_repeat']:.4f})"
+)
 print(f"  v1 -> v2 zone gain   : +{comparison['zone_accuracy']['delta_pp']:.1f} pp")
 print(f"  Reports written to   : {REPORTS_DIR}/")
