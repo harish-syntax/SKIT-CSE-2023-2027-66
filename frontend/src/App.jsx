@@ -3,11 +3,12 @@ import Sidebar from "./components/Sidebar";
 import ComplaintForm from "./components/ComplaintForm";
 import PredictionScreen from "./components/PredictionScreen";
 import ResultScreen from "./components/ResultScreen";
+import AlertScreen from "./components/AlertScreen";
 import { predictTopZones } from "./api/predict";
 import { createComplaint, listComplaints } from "./api/complaints";
 
 export default function App() {
-  const [screen, setScreen] = useState("form"); // form | prediction | results
+  const [screen, setScreen] = useState("form"); // form | prediction | results | alerts
   const [complaints, setComplaints] = useState([]);
   const [current, setCurrent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -20,6 +21,7 @@ export default function App() {
         const formatted = backendComplaints.map((bc) => ({
           id: bc.incident_id || `CC-${bc.id}`,
           victim: `Victim (${bc.victim_district})`,
+          victim_district: bc.victim_district,
           fraudType: bc.fraud_type,
           amount: bc.amount_inr,
           filedAt: bc.created_at || new Date().toISOString(),
@@ -77,7 +79,7 @@ export default function App() {
     }
   }
 
-  const navKey = screen === "results" ? "results" : "form";
+  const navKey = screen === "results" ? "results" : screen === "alerts" ? "alerts" : "form";
 
   return (
     <div className="min-h-screen flex bg-surface">
@@ -102,6 +104,16 @@ export default function App() {
               setScreen("prediction");
             }}
             onNew={() => setScreen("form")}
+          />
+        )}
+        {screen === "alerts" && (
+          <AlertScreen
+            complaints={complaints}
+            onSelectComplaint={(c) => {
+              setCurrent(c);
+              setScreen("prediction");
+            }}
+            onNavigate={setScreen}
           />
         )}
       </main>

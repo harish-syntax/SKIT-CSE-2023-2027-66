@@ -1,6 +1,7 @@
 const items = [
-  { key: "form", label: "File complaint" },
-  { key: "results", label: "All complaints" },
+  { key: "form", label: "File complaint", icon: "📝" },
+  { key: "results", label: "All complaints", icon: "📋" },
+  { key: "alerts", label: "Patrol Alerts", icon: "🚨", badge: "LIVE" },
 ];
 
 export default function Sidebar({ active, onNavigate }) {
@@ -15,13 +16,21 @@ export default function Sidebar({ active, onNavigate }) {
           <button
             key={item.key}
             onClick={() => onNavigate(item.key)}
-            className={`w-full text-left px-5 py-3 text-sm transition-colors ${
+            className={`w-full text-left px-5 py-3 text-sm transition-colors flex items-center justify-between ${
               active === item.key
-                ? "bg-ink-800 text-white border-l-2 border-risk"
+                ? "bg-ink-800 text-white border-l-2 border-risk font-medium"
                 : "text-ink-100 hover:bg-ink-800/60"
             }`}
           >
-            {item.label}
+            <span className="flex items-center gap-2">
+              <span className="text-xs">{item.icon}</span>
+              {item.label}
+            </span>
+            {item.badge && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-risk text-white uppercase tracking-wider animate-pulse">
+                {item.badge}
+              </span>
+            )}
           </button>
         ))}
       </nav>
