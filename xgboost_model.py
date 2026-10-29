@@ -39,21 +39,24 @@ from datetime import date
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
 # Shared configuration. Every zone/region mapping lives in one place so this
 # script, risk_cluster_model.py and the backend cannot drift apart.
 from atm_zone_config import (
+    DISTRICTS,
     FEATURES,
+    FRAUD_TYPES,
     INPUT_FILE,
     RANDOM_STATE,
     TARGET,
+    TIME_OF_DAY,
     XGB_PARAMS,
-    ZONE_LABELS,
     ZONE_MODEL_OUTPUT_FILE as MODEL_OUTPUT_FILE,
     ZONE_NAMES,
+    amount_bracket_code,
     as_feature_row,
     compute_sample_weights,
 )
@@ -76,10 +79,10 @@ ZONE_XGB_PARAMS = {
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
-def evaluate(model, X_test, y_test, title):
+def evaluate(model, X_test, y_test):
     """
-    Print a full evaluation block for one trained model: accuracy, classification
-    report, confusion matrix, feature importances and Top-3 hit rate.
+    Compute the metrics needed to choose between the two trained variants.
+    Nothing is printed here so the console stays clean for the final Top 3.
     """
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
@@ -93,35 +96,43 @@ def evaluate(model, X_test, y_test, title):
         [true_code in row for true_code, row in zip(true_codes, top_3_codes)]
     )
 
-    print(f"\n{'=' * 70}")
-    print(title)
-    print("=" * 70)
-    print(f"Overall Accuracy : {accuracy:.4f}  ({accuracy * 100:.2f}%)")
-    print(f"Top-3 Hit Rate   : {hit_rate:.4f}  ({hit_rate * 100:.2f}%)")
-
-    print("\nClassification Report:")
-    print(
-        classification_report(
-            y_test,
-            y_pred,
-            target_names=ZONE_LABELS,
-            zero_division=0,
-        )
-    )
-
-    print("Confusion Matrix (rows = actual zone, columns = predicted zone):")
-    print(ZONE_LABELS)
-    print(confusion_matrix(y_test, y_pred))
-
-    print("Feature Importances (how much each signal drove the decisions):")
-    importances = sorted(
-        zip(FEATURES, model.feature_importances_), key=lambda pair: pair[1], reverse=True
-    )
-    for feature, importance in importances:
-        bar = "#" * int(round(importance * 40))
-        print(f"  {feature:<24} {importance:.4f} {bar}")
-
     return {"accuracy": accuracy, "top3_hit_rate": hit_rate}
+
+
+def prompt_choice(label, options):
+    """Show a numbered menu and return the zero-based code of the choice."""
+    print(label)
+    for index, name in enumerate(options, start=1):
+        print(f"  {index}. {name}")
+
+    while True:
+        raw = input("Enter choice: ").strip()
+        if raw.isdigit() and 1 <= int(raw) <= len(options):
+            return int(raw) - 1
+        print(f"Enter a number from 1 to {len(options)}.")
+
+
+def prompt_amount():
+    """Read a positive loss amount in rupees."""
+    while True:
+        raw = input("Amount lost (INR): ").strip().replace(",", "")
+        try:
+            amount = float(raw)
+            if amount >= 0:
+                return amount
+        except ValueError:
+            pass
+        print("Enter a valid positive amount.")
+
+
+def read_complaint():
+    """Prompt for the four complaint fields and return model-ready codes."""
+    return {
+        "Fraud_Type_Code": prompt_choice("Fraud type:", FRAUD_TYPES),
+        "Victim_District_Code": prompt_choice("Victim district:", DISTRICTS),
+        "Time_of_Day_Code": prompt_choice("Time of day:", TIME_OF_DAY),
+        "Amount_Bracket_Code": amount_bracket_code(prompt_amount()),
+    }
 
 
 def predict_top_3_zones(model, input_features):
@@ -163,7 +174,6 @@ def predict_top_3_zones(model, input_features):
     ]
 
     # Human readable output for the live demo
-    print("Top 3 predicted ATM zones (patrol deployment order):")
     for rank, result in enumerate(results, start=1):
         print(
             f"{rank}. {result['zone']} - {result['probability'] * 100:.0f}%"
@@ -176,19 +186,11 @@ def predict_top_3_zones(model, input_features):
 # TASK 1: LOAD DATA, SPLIT, AND TRAIN
 # ============================================================================
 
-print("Predictive Analytics Framework for Cybercrime Complaints")
-print("=" * 70)
-
 # Load the manually engineered dataset produced by feature_engineering.py
 df = pd.read_csv(INPUT_FILE)
 
 X = df[FEATURES]
 y = df[TARGET]
-
-print(f"Dataset          : {INPUT_FILE}")
-print(f"Total complaints : {len(df)}")
-print(f"Features used    : {len(FEATURES)} -> {', '.join(FEATURES)}")
-print(f"Target           : {TARGET} ({len(ZONE_NAMES)} ATM zones)")
 
 # 80/20 hold-out split. stratify=y keeps the same class proportions in both
 # halves, which matters because C-Scheme and Jagatpura are already the rarest.
@@ -200,47 +202,24 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y,
 )
 
-print(f"Training samples : {len(X_train)}")
-print(f"Testing samples  : {len(X_test)}")
-
 # --- Model A: plain baseline -------------------------------------------------
 # Straightforward training, no adjustment for the class imbalance.
-print("\nTraining Model A (plain baseline)...")
 model_plain = XGBClassifier(**ZONE_XGB_PARAMS)
 model_plain.fit(X_train, y_train)
 
 # --- Model B: imbalance weighted -------------------------------------------
 # The dataset is skewed (C-Scheme ~235 rows vs ~580 for most zones), so this
 # variant up-weights rare zones to give them a fairer chance.
-print("Training Model B (inverse-frequency weighted)...")
 model_weighted = XGBClassifier(**ZONE_XGB_PARAMS)
 model_weighted.fit(X_train, y_train, sample_weight=compute_sample_weights(y_train))
 
 # Score both models on the untouched test set
-results_plain = evaluate(model_plain, X_test, y_test, "MODEL A - PLAIN BASELINE")
-results_weighted = evaluate(
-    model_weighted, X_test, y_test, "MODEL B - IMBALANCE WEIGHTED"
-)
+results_plain = evaluate(model_plain, X_test, y_test)
+results_weighted = evaluate(model_weighted, X_test, y_test)
 
 # --- Pick the winner ---------------------------------------------------------
 # Top-3 hit rate is the primary decision metric (it is what patrol deployment
 # actually relies on), with overall accuracy as the tie-breaker.
-print(f"\n{'=' * 70}")
-print("SIDE-BY-SIDE COMPARISON")
-print("=" * 70)
-print(
-    f"{'Model':<14}{'Accuracy':<14}{'Top-3 Hit Rate':<18}"
-)
-print("-" * 70)
-print(
-    f"{'A - Plain':<14}{results_plain['accuracy']:<14.4f}"
-    f"{results_plain['top3_hit_rate']:<18.4f}"
-)
-print(
-    f"{'B - Weighted':<14}{results_weighted['accuracy']:<14.4f}"
-    f"{results_weighted['top3_hit_rate']:<18.4f}"
-)
-
 if (
     results_weighted["top3_hit_rate"],
     results_weighted["accuracy"],
@@ -250,8 +229,6 @@ if (
 else:
     best_model = model_plain
     best_model_name = "Model A (plain baseline)"
-
-print(f"\nSelected for deployment: {best_model_name}")
 
 
 # ============================================================================
@@ -286,55 +263,10 @@ joblib.dump(
     MODEL_OUTPUT_FILE,
 )
 
-print(f"Trained model saved to: {MODEL_OUTPUT_FILE}")
-
 
 # ============================================================================
-# TASK 2: DEMO OF THE TOP 3 PREDICTION FUNCTION
+# TASK 2: ASK FOR A COMPLAINT AND SHOW THE TOP 3 ZONES
 # ============================================================================
-# Mock complaint, spoken in plain language:
-#   "A Jaipur resident was targeted by a UPI scam and lost Rs 18,000,
-#    reporting it at 14:00 (Afternoon)."
-#
-# Encoded by hand using the dictionaries in feature_engineering.py:
-#   Fraud_Type_Code       0 = UPI Scam
-#   Victim_District_Code  0 = Jaipur
-#   Time_of_Day_Code      1 = Afternoon  (complaint logged at 14:00)
-#   Amount_Bracket_Code   1 = Medium (15k-50k), because 18,000 falls in that band
-#
-# IMPORTANT: this mock must stay internally consistent with the way the dataset
-# was generated. dataset/dataset.py gives UPI Scam a right-skewed loss profile
-# (Rs 1,500-60,000, mode ~Rs 8,000) with daytime complaint hours (08:00-23:00,
-# peaking early afternoon), so Rs 18,000 at 14:00 is a plausible large-loss
-# daytime complaint. An earlier version of this demo used a night-time hour and
-# an amount outside the UPI profile; it still returned confident-looking output,
-# which is the dangerous kind of wrong. Keep the amount and time-of-day
-# plausible for the fraud type.
-mock_complaint = {
-    "Fraud_Type_Code": 0,
-    "Victim_District_Code": 0,
-    "Time_of_Day_Code": 1,
-    "Amount_Bracket_Code": 1,
-}
+mock_complaint = read_complaint()
 
-print(f"\n{'=' * 70}")
-print("TASK 2 - TOP 3 ZONE PREDICTION (LIVE DEMO)")
-print("=" * 70)
-print("Mock complaint: 'UPI Scam, victim in Jaipur, reported at 14:00, Rs 18,000 lost'")
-print(f"Engineered features: {mock_complaint}\n")
-
-top_zones = predict_top_3_zones(best_model, mock_complaint)
-
-# The function also returns structured data, ready to be posted straight into
-# the backend's Prediction table (predicted_zone + confidence_score).
-print("\nStructured output for the API:")
-for result in top_zones:
-    print(f"  {result['zone']}: {result['probability']:.4f}")
-
-print(
-    "\nNote: judge the zone model by its shortlist, not its top probability:"
-    "\nTop-3 hit rate is 92.9% on hold-out (Top-1 is 74.7%, so the leading"
-    "\nzone alone is often the wrong one). For a belt-level statement a"
-    "\ncontrol room can act on directly, run risk_cluster_model.py, which"
-    "\npredicts the broader cash-draining region at ~86% accuracy."
-)
+predict_top_3_zones(best_model, mock_complaint)

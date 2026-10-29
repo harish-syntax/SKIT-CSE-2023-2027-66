@@ -38,6 +38,50 @@ TARGET = "Target_ATM_Zone_Code"
 
 
 # ============================================================================
+# INPUT MAPPINGS (human readable choice -> model code)
+# ============================================================================
+# Ordered exactly as in feature_engineering.py, so the interactive prompt can
+# offer a numbered list and turn the choice into the code the model expects.
+FRAUD_TYPES = [
+    "UPI Scam",
+    "OLX Scam",
+    "KYC Fraud",
+    "Sextortion",
+    "Job Fraud",
+    "Credit Card Cloning",
+    "Investment Scam",
+    "Loan App Fraud",
+]
+
+DISTRICTS = [
+    "Jaipur",
+    "Jodhpur",
+    "Udaipur",
+    "Ajmer",
+    "Alwar",
+    "Sikar",
+    "Kota",
+    "Bikaner",
+    "Bhilwara",
+    "Pali",
+    "Tonk",
+]
+
+TIME_OF_DAY = ["Morning", "Afternoon", "Evening", "Night"]
+
+
+def amount_bracket_code(amount):
+    """Mirror feature_engineering.categorize_amount thresholds as a code."""
+    if amount <= 15000:
+        return 0
+    if amount <= 50000:
+        return 1
+    if amount <= 100000:
+        return 2
+    return 3
+
+
+# ============================================================================
 # ATM ZONES (stage 2 target classes, 0-9)
 # ============================================================================
 # Numeric class code -> human readable zone name. This exact mapping is
