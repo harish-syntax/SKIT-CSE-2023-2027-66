@@ -41,8 +41,22 @@ export default function ComplaintForm({ onSubmit, submitting }) {
       next.contact = "Enter a valid 10-digit mobile number.";
     if (!form.victim_district) next.victim_district = "Select a victim district.";
     if (!form.fraud_type) next.fraud_type = "Select a cybercrime fraud type.";
-    if (!form.amount_inr || Number(form.amount_inr) <= 0)
-      next.amount_inr = "Enter a valid loss amount in ₹.";
+
+    // Strict Amount Validation: Numbers only and strictly greater than ₹1,000
+    const amtStr = String(form.amount_inr ?? "").trim();
+    if (!amtStr) {
+      next.amount_inr = "Enter the fraud loss amount in ₹.";
+    } else if (!/^\d+$/.test(amtStr)) {
+      next.amount_inr = "Amount must contain digits only (no letters or symbols).";
+    } else {
+      const amtVal = Number(amtStr);
+      if (amtVal <= 1000) {
+        next.amount_inr = "Amount must be greater than ₹1,000 (minimum fraud reporting threshold).";
+      } else if (amtVal > 100000000) {
+        next.amount_inr = "Amount exceeds the maximum limit of ₹10,00,00,000.";
+      }
+    }
+
     if (!form.description.trim() || form.description.trim().length < 15)
       next.description = "Add at least 15 characters describing what happened.";
     setErrors(next);
@@ -84,13 +98,14 @@ export default function ComplaintForm({ onSubmit, submitting }) {
           />
         </Field>
 
-        <Field label="Mobile Number" error={errors.contact}>
+        <Field label="Mobile Number" error={errors.contact} hint="10 digits only">
           <input
             className={`${inputBase} ${errors.contact ? inputError : inputOk}`}
             value={form.contact}
-            onChange={(e) => update("contact", e.target.value)}
+            onChange={(e) => update("contact", e.target.value.replace(/\D/g, "").slice(0, 10))}
             placeholder="10-digit mobile number"
             inputMode="numeric"
+            maxLength={10}
           />
         </Field>
 
@@ -119,14 +134,26 @@ export default function ComplaintForm({ onSubmit, submitting }) {
           </select>
         </Field>
 
-        <Field label="Amount Involved (₹)" error={errors.amount_inr}>
-          <input
-            className={`${inputBase} ${errors.amount_inr ? inputError : inputOk}`}
-            value={form.amount_inr}
-            onChange={(e) => update("amount_inr", e.target.value)}
-            placeholder="e.g. 25000"
-            inputMode="numeric"
-          />
+        <Field
+          label="Amount Involved (₹)"
+          error={errors.amount_inr}
+          hint="Numbers only · Must be > ₹1,000"
+        >
+          <div className="relative">
+            <span className="absolute left-3 top-2 text-ink-400 font-medium text-sm select-none">₹</span>
+            <input
+              type="text"
+              className={`${inputBase} pl-7 ${errors.amount_inr ? inputError : inputOk}`}
+              value={form.amount_inr}
+              onChange={(e) => {
+                // Strict restriction: Allow only digits 0-9 (strips letters, symbols, decimals, negatives)
+                const digitsOnly = e.target.value.replace(/\D/g, "");
+                update("amount_inr", digitsOnly);
+              }}
+              placeholder="e.g. 25000 (Min. ₹1,001)"
+              inputMode="numeric"
+            />
+          </div>
         </Field>
 
         <Field label="Time of Complaint (HH:MM)" error={errors.time_of_complaint}>
@@ -179,12 +206,15 @@ export default function ComplaintForm({ onSubmit, submitting }) {
   );
 }
 
-function Field({ label, error, children }) {
+function Field({ label, error, hint, children }) {
   return (
     <div className="mb-2">
-      <label className="block text-xs font-medium text-ink-600 mb-1.5 uppercase tracking-wider">{label}</label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-xs font-medium text-ink-600 uppercase tracking-wider">{label}</label>
+        {hint && <span className="text-[11px] text-muted font-normal">{hint}</span>}
+      </div>
       {children}
-      {error && <p className="text-xs text-risk mt-1">{error}</p>}
+      {error && <p className="text-xs text-risk mt-1 font-medium">{error}</p>}
     </div>
   );
 }
