@@ -52,7 +52,7 @@ export default function ComplaintForm({ onSubmit, submitting }) {
     if (!form.victim_district) next.victim_district = "Select a victim district.";
     if (!form.fraud_type) next.fraud_type = "Select a cybercrime fraud type.";
 
-    // Strict Amount Validation: Numbers only and strictly greater than ₹1,000
+    // Strict Amount Validation: Numbers only and strictly greater than ₹499
     const amtStr = String(form.amount_inr ?? "").trim();
     if (!amtStr) {
       next.amount_inr = "Enter the fraud loss amount in ₹.";
@@ -60,8 +60,8 @@ export default function ComplaintForm({ onSubmit, submitting }) {
       next.amount_inr = "Amount must contain digits only (no letters or symbols).";
     } else {
       const amtVal = Number(amtStr);
-      if (amtVal <= 1000) {
-        next.amount_inr = "Amount must be greater than ₹1,000 (minimum fraud reporting threshold).";
+      if (amtVal <= 499) {
+        next.amount_inr = "Amount must be greater than ₹499 (minimum ₹500).";
       } else if (amtVal > 100000000) {
         next.amount_inr = "Amount exceeds the maximum limit of ₹10,00,00,000.";
       }
@@ -152,7 +152,7 @@ export default function ComplaintForm({ onSubmit, submitting }) {
         <Field
           label="Amount Involved (₹)"
           error={errors.amount_inr}
-          hint="Numbers only · Must be > ₹1,000"
+          hint="Numbers only · Must be > ₹499"
         >
           <div className="relative">
             <span className="absolute left-3 top-2 text-ink-400 font-medium text-sm select-none">₹</span>
@@ -165,7 +165,7 @@ export default function ComplaintForm({ onSubmit, submitting }) {
                 const digitsOnly = e.target.value.replace(/\D/g, "");
                 update("amount_inr", digitsOnly);
               }}
-              placeholder="e.g. 25000 (Min. ₹1,001)"
+              placeholder="e.g. 25000 (Min. ₹500)"
               inputMode="numeric"
             />
           </div>
