@@ -7,29 +7,64 @@ import AlertScreen from "./components/AlertScreen";
 import { predictTopZones } from "./api/predict";
 import { createComplaint, listComplaints } from "./api/complaints";
 
+const STORAGE_KEY = "skit_cybercrime_complaints_v1";
+
+// Safely loads previously filed complaints from browser localStorage
+function getInitialComplaints() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn("Error reading complaints from localStorage:", e);
+  }
+  return [];
+}
+
 export default function App() {
   const [screen, setScreen] = useState("form"); // form | prediction | results | alerts
-  const [complaints, setComplaints] = useState([]);
+  const [complaints, setComplaints] = useState(getInitialComplaints);
   const [current, setCurrent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load existing complaints from backend on mount
+  // Sync with backend API if available, preserving and merging with local stored cases
   useEffect(() => {
     async function loadData() {
-      const backendComplaints = await listComplaints();
-      if (backendComplaints && backendComplaints.length > 0) {
-        const formatted = backendComplaints.map((bc) => ({
-          id: bc.incident_id || `CC-${bc.id}`,
-          victim: `Victim (${bc.victim_district})`,
-          victim_district: bc.victim_district,
-          fraudType: bc.fraud_type,
-          amount: bc.amount_inr,
-          filedAt: bc.created_at || new Date().toISOString(),
-          zones: bc.target_atm_zone
-            ? [{ name: bc.target_atm_zone, probability: 0.85, lat: 26.8523, lng: 75.7667 }]
-            : [],
-        }));
-        setComplaints(formatted);
+      try {
+        const backendComplaints = await listComplaints();
+        if (backendComplaints && backendComplaints.length > 0) {
+          setComplaints((prev) => {
+            const existingIds = new Set(prev.map((c) => c.id));
+            const newFromBackend = backendComplaints
+              .filter((bc) => !existingIds.has(bc.incident_id || `CC-${bc.id}`))
+              .map((bc) => ({
+                id: bc.incident_id || `CC-${bc.id}`,
+                victim: bc.victim || `Victim (${bc.victim_district})`,
+                victim_district: bc.victim_district,
+                fraudType: bc.fraud_type,
+                amount: bc.amount_inr,
+                filedAt: bc.created_at || new Date().toISOString(),
+                zones: bc.target_atm_zone
+                  ? [{ name: bc.target_atm_zone, probability: 0.85, lat: 26.8523, lng: 75.7667 }]
+                  : [],
+              }));
+
+            if (newFromBackend.length === 0) return prev;
+            const merged = [...newFromBackend, ...prev];
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            } catch (err) {
+              console.warn("Error caching merged complaints:", err);
+            }
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn("Backend not reachable on initial load, using persistent local storage:", err.message);
       }
     }
     loadData();
@@ -40,7 +75,6 @@ export default function App() {
     try {
       // 1. Get predicted ATM zones using predictive model
       const zones = await predictTopZones(data);
-
       const topZone = zones[0]?.name || "Mansarovar";
 
       // 2. Persist to FastAPI Backend (/complaints/)
@@ -57,7 +91,7 @@ export default function App() {
 
       const saved = await createComplaint(backendPayload);
 
-      // 3. Update local state
+      // 3. Update local state and persist to localStorage
       const newComplaint = {
         id: saved.incident_id || data.incident_id,
         victim: data.victim,
@@ -69,13 +103,33 @@ export default function App() {
         zones,
       };
 
-      setComplaints((list) => [newComplaint, ...list]);
+      setComplaints((list) => {
+        const updated = [newComplaint, ...list];
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        } catch (e) {
+          console.warn("Could not save complaint to localStorage:", e);
+        }
+        return updated;
+      });
+
       setCurrent(newComplaint);
       setScreen("prediction");
     } catch (err) {
       console.error("Submission error:", err);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function handleClearComplaints() {
+    if (window.confirm("Are you sure you want to clear all complaints history?")) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        console.warn("Error removing from localStorage:", e);
+      }
+      setComplaints([]);
     }
   }
 
@@ -104,6 +158,7 @@ export default function App() {
               setScreen("prediction");
             }}
             onNew={() => setScreen("form")}
+            onClear={handleClearComplaints}
           />
         )}
         {screen === "alerts" && (

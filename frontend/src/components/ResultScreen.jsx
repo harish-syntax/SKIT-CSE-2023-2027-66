@@ -38,7 +38,7 @@ function getPriorityBadge(amount) {
   );
 }
 
-export default function ResultScreen({ complaints = [], onSelect, onNew }) {
+export default function ResultScreen({ complaints = [], onSelect, onNew, onClear }) {
   const [search, setSearch] = useState("");
   const [fraudFilter, setFraudFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
@@ -105,6 +105,15 @@ export default function ResultScreen({ complaints = [], onSelect, onNew }) {
           </p>
         </div>
         <div className="flex items-center gap-2.5">
+          {complaints.length > 0 && onClear && (
+            <button
+              onClick={onClear}
+              className="border border-surface-border bg-white text-muted hover:text-risk hover:border-risk-100 text-xs font-medium px-3 py-2 rounded transition-colors"
+              title="Clear stored complaints history"
+            >
+              Clear History
+            </button>
+          )}
           <button
             onClick={handleExportCSV}
             disabled={filtered.length === 0}
@@ -128,7 +137,7 @@ export default function ResultScreen({ complaints = [], onSelect, onNew }) {
           <p className="text-xs font-medium text-muted uppercase tracking-wider">Total Complaints</p>
           <div className="flex items-baseline justify-between mt-1">
             <span className="font-mono text-2xl font-bold text-ink">{complaints.length}</span>
-            <span className="text-xs text-muted">Active Session</span>
+            <span className="text-xs text-muted">Persistent Storage</span>
           </div>
         </div>
 
@@ -198,7 +207,7 @@ export default function ResultScreen({ complaints = [], onSelect, onNew }) {
       {/* Table section */}
       {complaints.length === 0 ? (
         <div className="bg-surface-panel border border-t-0 border-surface-border rounded-b-lg px-6 py-12 text-center">
-          <p className="font-display text-base font-semibold text-ink">No complaints logged in this session</p>
+          <p className="font-display text-base font-semibold text-ink">No complaints logged in history</p>
           <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
             Submit a cybercrime report using the complaint intake form to forecast ATM cash withdrawal zones.
           </p>
