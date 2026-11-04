@@ -36,7 +36,17 @@ export default function ComplaintForm({ onSubmit, submitting }) {
 
   function validate() {
     const next = {};
-    if (!form.victim.trim()) next.victim = "Enter the victim's name.";
+
+    // Strict Victim Name Validation: Alphabets and spaces only
+    const victimClean = form.victim.trim();
+    if (!victimClean) {
+      next.victim = "Enter the victim's name.";
+    } else if (!/^[a-zA-Z\s]+$/.test(victimClean)) {
+      next.victim = "Victim name must contain alphabets and spaces only (no numbers or special characters).";
+    } else if (victimClean.length < 2) {
+      next.victim = "Victim name must be at least 2 characters.";
+    }
+
     if (!/^\d{10}$/.test(form.contact.trim()))
       next.contact = "Enter a valid 10-digit mobile number.";
     if (!form.victim_district) next.victim_district = "Select a victim district.";
@@ -89,12 +99,17 @@ export default function ComplaintForm({ onSubmit, submitting }) {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Victim Name" error={errors.victim}>
+        <Field label="Victim Name" error={errors.victim} hint="Alphabets only">
           <input
+            type="text"
             className={`${inputBase} ${errors.victim ? inputError : inputOk}`}
             value={form.victim}
-            onChange={(e) => update("victim", e.target.value)}
-            placeholder="Full name as on ID"
+            onChange={(e) => {
+              // Real-time restriction: Allow only alphabetic letters (A-Z, a-z) and single spaces
+              const alphabetsOnly = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+              update("victim", alphabetsOnly);
+            }}
+            placeholder="Full name (e.g. Rahul Sharma)"
           />
         </Field>
 
