@@ -118,7 +118,7 @@ def prompt_amount():
         raw = input("Amount lost (INR): ").strip().replace(",", "")
         try:
             amount = float(raw)
-            if amount >= 0:
+            if amount > 0:
                 return amount
         except ValueError:
             pass
